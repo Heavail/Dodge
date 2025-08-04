@@ -205,10 +205,11 @@ class Main:
         player = Assets(self.screen,velocity = (0,0),pos = (50,50))
         player_flip = False
         landed = False
+        launched = False
         move_for = False
         move_back = False
         gr = {}
-        ground = Manager(self.screen,image = 'land3.png',repeat_pos=[650,650,650],size = (150,100))
+        ground = Manager(self.screen,image = 'land3.png',repeat_pos=[650,650,650],size = (500,100))
         ground_start = 0
         ground_vel = 0
         while True:
@@ -216,9 +217,12 @@ class Main:
             player.show()
             # ground.show()
             player.animate('standing',flip = player_flip)
-            grounds = ground.repeat(150,(600,650),(ground_start,1400),velocity = ground_vel,erase_before=-1400)
+            grounds = ground.repeat(ground.size[0],(600,650),(ground_start,1400),velocity = ground_vel,erase_before=-1400)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
+            # print(player.velocity[1])
+            if player.velocity[1] >= 0:
+                launched = False
             for i in grounds:
                 player.collision(i)
                 if player.objects[f'{i}'].right_collide == True and player.objects[f'{i}'].left_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
@@ -228,8 +232,10 @@ class Main:
                     player.pos = (i.pos[0] + i.width,player.pos[1])
                     player.objects[f'{i}'].down_collide = False
                 if player.objects[f'{i}'].down_collide == True and i.pos[1] > player.pos[1] + (player.height/2):
-                    landed = True
-                    player.velocity = (player.velocity[0],0)
+                    if launched == False:
+                        # print(True)
+                        landed = True
+                        player.velocity = (player.velocity[0],0)
                     player.pos = (player.pos[0],i.pos[1] - player.height)
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
@@ -253,7 +259,7 @@ class Main:
                     ground_vel = 0
                 else:
                     player.velocity = (0,player.velocity[1])
-                    ground_vel = -1
+                    ground_vel = -0.5
                 player_flip = False
             # else:
             #     player.velocity = (0,player.velocity[1])
@@ -282,8 +288,9 @@ class Main:
                     if event.key == pm.K_LEFT:
                         player.folder = 'walking'
                         move_back = True
-                    if event.key == pm.K_SPACE and landed:
+                    if event.key == pm.K_SPACE and landed == True:
                         player.velocity = (player.velocity[0],-1)
+                        launched = True
                     
                 elif event.type == pm.KEYUP:
                     if event.key == K_LEFT:
