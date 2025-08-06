@@ -163,8 +163,10 @@ class Manager:
 
 class Main:
     def __init__(self):
-        self._screenheight  = 710
-        self._screenwidth = 1365
+        pm.init()
+        screen_info = pm.display.Info()
+        self._screenheight  = screen_info.current_h
+        self._screenwidth = screen_info.current_w
         self.groundy_list = [self.screenheight - 100,self.screenheight - 100,self.screenheight - 100]
         pass
     @property
@@ -209,15 +211,16 @@ class Main:
         move_for = False
         move_back = False
         gr = {}
-        ground = Manager(self.screen,image = 'land3.png',repeat_pos=[650,650,650],size = (500,100))
+        ground = Manager(self.screen,image = 'land3.png',repeat_pos=[],size = (500,100))
         ground_start = 0
         ground_vel = 0
         while True:
+            blocked = False
             self.screen.fill((0,0,0))
             player.show()
             # ground.show()
-            player.animate('standing',flip = player_flip)
-            grounds = ground.repeat(ground.size[0],(600,650),(ground_start,1400),velocity = ground_vel,erase_before=-1400)
+            player.animate('walking',flip = player_flip)
+            grounds = ground.repeat(ground.size[0],(self.screenheight - 100,self.screenheight - 50),(ground_start,self.screenwidth),velocity = ground_vel,erase_before=-1400)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
@@ -226,6 +229,7 @@ class Main:
             for i in grounds:
                 player.collision(i)
                 if player.objects[f'{i}'].right_collide == True and player.objects[f'{i}'].left_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
+                    blocked = True
                     player.pos = (i.pos[0] - player.width,player.pos[1])
                     player.objects[f'{i}'].down_collide = False
                 if player.objects[f'{i}'].left_collide == True and player.objects[f'{i}'].right_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
@@ -253,50 +257,43 @@ class Main:
                 # else:
                 player.acceleration = (player.acceleration[0],+0.01)
             
-            if move_for == True:
-                if player.pos[0] < 150:
-                    player.velocity = (1,player.velocity[1])
-                    ground_vel = 0
+            # if move_for == True:
+            if player.pos[0] < 150 and blocked == False:
+                player.velocity = (0.5,player.velocity[1])
+                ground_vel = 0
+            else:
+                ground_vel = -0.5
+                if blocked:
+                    player.folder = 'standing'
+                    player.velocity = (ground_vel,player.velocity[1])
                 else:
+                    player.folder = 'walking'
                     player.velocity = (0,player.velocity[1])
-                    ground_vel = -0.5
-                player_flip = False
+            player_flip = False
             # else:
             #     player.velocity = (0,player.velocity[1])
 
-            elif move_back == True:
-                if player.pos[0] > 100:
-                    player.velocity = (-1,player.velocity[1])
-                    ground_vel = 0
-                else:
-                    player.velocity = (0,player.velocity[1])
-                    ground_vel = 1
-                player_flip = True
-            else:
-                player.velocity = (0,player.velocity[1])
-                player.folder = 'standing'
-                ground_vel = 0
+            # elif move_back == True:
+            #     if player.pos[0] > 100:
+            #         player.velocity = (-1,player.velocity[1])
+            #         ground_vel = 0
+            #     else:
+            #         player.velocity = (0,player.velocity[1])
+            #         ground_vel = 1
+            #     player_flip = True
+            # else:
+            #     player.velocity = (0,player.velocity[1])
+            #     player.folder = 'standing'
+            #     ground_vel = 0
             if player.pos[1] > self.screenheight:
                 quit()
             for event in pm.event.get():
                 if event.type == pm.QUIT:
                     quit()
                 if event.type == pm.KEYDOWN:
-                    if event.key == pm.K_RIGHT:
-                        player.folder = 'walking'
-                        move_for = True
-                    if event.key == pm.K_LEFT:
-                        player.folder = 'walking'
-                        move_back = True
                     if event.key == pm.K_SPACE and landed == True:
                         player.velocity = (player.velocity[0],-1)
                         launched = True
-                    
-                elif event.type == pm.KEYUP:
-                    if event.key == K_LEFT:
-                        move_back = False
-                    if event.key == K_RIGHT:
-                        move_for = False
 
             pm.display.update()
             await asyncio.sleep(0)
