@@ -16,6 +16,7 @@ class Assets:
         self._image = image
         self.pos = pos
         self.folder_once = True
+        self.previous_size = None
         if self._image:
             self.image_blit = pm.image.load(self._image).convert_alpha()
             if self._size:
@@ -72,6 +73,9 @@ class Assets:
             self._image = value
             if self._image:
                 self.image_blit = pm.image.load(self._image).convert_alpha()
+                self.size = self.image_blit.get_size()
+                if self.previous_size:
+                    self.pos = (self.pos[0] + self.previous_size[0] - self.size[0],self.pos[1] + self.previous_size[1] - self.size[1])
                 if self._size == None:
                     self.size = (self.image_blit.get_width(),self.image_blit.get_height())
     @property
@@ -87,6 +91,7 @@ class Assets:
             self.animate(self._folder,self.rate)
     def show(self):
         if self._image:
+            self.previous_size = self.size
             self.velocity = (self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1])
             self.pos = (self.pos[0] + self.velocity[0],self.pos[1] + self.velocity[1])
             self.screen.blit(self.image_blit,self.pos)
@@ -108,6 +113,7 @@ class Assets:
         # print(self.image)
         if flip == True:
             self.image_blit = pm.transform.flip(pm.image.load(self._image).convert_alpha(),flip_x = True,flip_y = False)
+        
         self.count += 1
 
 
@@ -210,6 +216,7 @@ class Main:
         launched = False
         move_for = False
         move_back = False
+        slide = False
         gr = {}
         ground = Manager(self.screen,image = 'land3.png',repeat_pos=[],size = (500,100))
         ground_start = 0
@@ -219,7 +226,7 @@ class Main:
             self.screen.fill((0,0,0))
             player.show()
             # ground.show()
-            player.animate('walking',flip = player_flip)
+            player.animate('walking',flip = False)
             grounds = ground.repeat(ground.size[0],(self.screenheight - 100,self.screenheight - 50),(ground_start,self.screenwidth),velocity = ground_vel,erase_before=-1400)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
@@ -267,9 +274,11 @@ class Main:
                     player.folder = 'standing'
                     player.velocity = (ground_vel,player.velocity[1])
                 else:
-                    player.folder = 'walking'
+                    if slide:
+                        player.folder = 'sliding'
+                    else:
+                        player.folder = 'walking'
                     player.velocity = (0,player.velocity[1])
-            player_flip = False
             # else:
             #     player.velocity = (0,player.velocity[1])
 
@@ -291,10 +300,14 @@ class Main:
                 if event.type == pm.QUIT:
                     quit()
                 if event.type == pm.KEYDOWN:
-                    if event.key == pm.K_SPACE and landed == True:
+                    if event.key == pm.K_SPACE and landed == True and not slide:
                         player.velocity = (player.velocity[0],-1)
                         launched = True
-
+                    if event.key == pm.K_DOWN and landed:
+                        slide = True
+                elif event.type == pm.KEYUP:
+                    if event.key == pm.K_DOWN:
+                        slide = False
             pm.display.update()
             await asyncio.sleep(0)
             pass
