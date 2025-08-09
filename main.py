@@ -10,7 +10,10 @@ class Assets:
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
         self.screen = screen
+        self.fixed_size = size
         self._size = size
+        if self._size:
+            self.width,self.height = self._size
         self.count = 0
         self.frame_count = 0
         self._image = image
@@ -73,11 +76,12 @@ class Assets:
             self._image = value
             if self._image:
                 self.image_blit = pm.image.load(self._image).convert_alpha()
-                self.size = self.image_blit.get_size()
+                if self.fixed_size == None:
+                    self.size = self.image_blit.get_size()
+                else:
+                    self.image_blit = pm.transform.scale(self.image_blit,self._size)
                 if self.previous_size:
                     self.pos = (self.pos[0] + self.previous_size[0] - self.size[0],self.pos[1] + self.previous_size[1] - self.size[1])
-                if self._size == None:
-                    self.size = (self.image_blit.get_width(),self.image_blit.get_height())
     @property
     def folder(self):
         return self._folder
@@ -107,8 +111,6 @@ class Assets:
             self.count = 0
         if self.frame_count == len(self.file_list):
             self.frame_count = 0
-        if adjust_size == False:
-            self.size = None
         self.image = f'{self._folder}//{self.file_list[self.frame_count]}'
         # print(self.image)
         if flip == True:
