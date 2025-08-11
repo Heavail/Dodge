@@ -3,9 +3,11 @@ from pygame.locals import *
 import os
 import random
 import asyncio
+import time
+
 class Assets:
     assets = []
-    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0)):
+    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False):
         Assets.assets.append(self)
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
@@ -14,6 +16,8 @@ class Assets:
         self._size = size
         if self._size:
             self.width,self.height = self._size
+        self._folder = None
+        self.rate = 30
         self.count = 0
         self.frame_count = 0
         self._image = image
@@ -21,7 +25,7 @@ class Assets:
         self.folder_once = True
         self.previous_size = None
         if self._image:
-            self.image_blit = pm.image.load(self._image).convert_alpha()
+            self.image_blit = pm.transform.flip(pm.image.load(self._image).convert_alpha(),flipx,flipy)
             if self._size:
                 self.image_blit = pm.transform.scale(self.image_blit,size)
             self.width, self.height = (self.image_blit.get_width(),self.image_blit.get_height())
@@ -150,6 +154,8 @@ class Manager:
             else:
                 posy = object.pos[1]
             pos = (posx,posy)
+            object.size = self.size
+            object.velocity = (velocity,0)
             object.pos = pos
             object.show()
             # if erase_before:
@@ -220,9 +226,53 @@ class Main:
         move_back = False
         slide = False
         gr = {}
-        ground = Manager(self.screen,image = 'land3.png',repeat_pos=[],size = (500,100))
+        ground = Manager(self.screen,image = 'land3.png',size = (900,100))
         ground_start = 0
         ground_vel = 0
+        def ground_interaction(player,i):
+            nonlocal landed,launched,blocked
+            player.collision(i)
+            if player.objects[f'{i}'].right_collide == True and player.objects[f'{i}'].left_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
+                blocked = True
+                player.pos = (i.pos[0] - player.width,player.pos[1])
+                player.objects[f'{i}'].down_collide = False
+            if player.objects[f'{i}'].left_collide == True and player.objects[f'{i}'].right_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
+                player.pos = (i.pos[0] + i.width,player.pos[1])
+                player.objects[f'{i}'].down_collide = False
+            if player.objects[f'{i}'].down_collide == True and i.pos[1] > player.pos[1] + (player.height/2):
+                if launched == False:
+                    # print(True)
+                    landed = True
+                    player.velocity = (player.velocity[0],0)
+                player.pos = (player.pos[0],i.pos[1] - player.height)
+
+        def obstacles(screen,ground,obs_list = [None]):
+            try:
+                obstacle = ground.obstacle
+            except AttributeError:
+                object = random.choice(obs_list)
+                if object:
+                    obstacle = ground.obstacle = Assets(screen,image = object.get('image',None),
+                                         pos = (ground.pos[0] + ground.size[0] + object.get('posbiasx',0),ground.pos[1] + object.get('posbiasy',0)),
+                                         size = object.get('size',None),
+                                         velocity=(object.get('velocityx',0) + ground.velocity[0],object.get('velocityy',0) + ground.velocity[1]),
+                                         flipx = object.get('flipx',False),flipy = object.get('flipy',False))
+                    obstacle.vel = (object.get('velocityx',0),object.get('velcoityy',0))
+                    obstacle.folder = object.get('folder',None)
+                    obstacle.rate = object.get('rate',0)
+                    obstacle.flip = (object.get('flipx',False),object.get('flipy',False))
+                    obstacle.shoot = object.get('shoot',None)
+                else:
+                    obstacle = ground.obstacle = object
+            if obstacle:
+                if obstacle.folder:
+                    obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
+                obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
+                obstacle.show()
+                if obstacle.shoot:
+                    obstacles(screen,obstacle,obstacle.shoot)
+        fireball = {'folder' : 'fire_ball','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -1}
+        statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball]}
         while True:
             blocked = False
             self.screen.fill((0,0,0))
@@ -236,20 +286,8 @@ class Main:
             if player.velocity[1] >= 0:
                 launched = False
             for i in grounds:
-                player.collision(i)
-                if player.objects[f'{i}'].right_collide == True and player.objects[f'{i}'].left_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
-                    blocked = True
-                    player.pos = (i.pos[0] - player.width,player.pos[1])
-                    player.objects[f'{i}'].down_collide = False
-                if player.objects[f'{i}'].left_collide == True and player.objects[f'{i}'].right_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
-                    player.pos = (i.pos[0] + i.width,player.pos[1])
-                    player.objects[f'{i}'].down_collide = False
-                if player.objects[f'{i}'].down_collide == True and i.pos[1] > player.pos[1] + (player.height/2):
-                    if launched == False:
-                        # print(True)
-                        landed = True
-                        player.velocity = (player.velocity[0],0)
-                    player.pos = (player.pos[0],i.pos[1] - player.height)
+                ground_interaction(player,i)
+                obstacles(self.screen,i,[statue,None])
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
             #     gr[i].show()
