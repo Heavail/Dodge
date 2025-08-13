@@ -124,18 +124,20 @@ class Assets:
 
 
 class Manager:
-    def __init__(self,screen,image = None,repeat_pos = [],repeated = [],size = None):
+    def __init__(self, screen, image=None, repeat_pos=None, repeated=None, size=None):
         self.screen = screen
         self.size = size
         self.image = image
-        self.repeat_pos = repeat_pos
-        self.repeated = repeated
+        self.repeat_pos = repeat_pos if repeat_pos is not None else []
+        self.repeated = repeated if repeated is not None else []
         self.once_till = True
-        pass
-    def repeat(self,gap,range_to,till,erase_before = None,velocity = 0):
+
+    def repeat(self,gap,range_to,till,erase_before = None,velocity = 0,positions = None):
         if self.once_till == True:
             self.till = till
+            self.till[0] = till[0]
             self.once_till = False
+        self.till[1] = till[1]
         dis = self.till[1] - self.till[0]
         self.repeat_num = int(dis/gap) + 1
         count = 0
@@ -143,7 +145,7 @@ class Manager:
             try:
                 object = self.repeated[count]
             except:
-                object = Assets(self.screen,image = self.image,size = self.size)
+                object = Assets(self.screen,image = self.image,size = self.size,pos = positions)
                 self.repeated.append(object)
             posx = self.till[0] + count * gap
             if not object.pos:
@@ -165,15 +167,14 @@ class Manager:
             pass
         if erase_before:
             if self.till[0] < erase_before:
-                self.till = (self.till[0] + gap,self.till[1])
+                self.till = [self.till[0] + gap,self.till[1]]
                 try:
                     self.repeated.remove(self.repeated[0])
                 except:
                     pass
-        self.till = (self.till[0] + velocity,self.till[1])
+        self.till = [self.till[0] + velocity,self.till[1]]
         return self.repeated
         pass
-
 
 class Main:
     def __init__(self):
@@ -252,34 +253,45 @@ class Main:
             except AttributeError:
                 object = random.choice(obs_list)
                 if object:
-                    obstacle = ground.obstacle = Assets(screen,image = object.get('image',None),
+                    if object.get('repeat',False) == False:
+                        obstacle = ground.obstacle = Assets(screen,image = object.get('image',None),
                                          pos = (ground.pos[0] + ground.size[0] + object.get('posbiasx',0),ground.pos[1] + object.get('posbiasy',0)),
                                          size = object.get('size',None),
                                          velocity=(object.get('velocityx',0) + ground.velocity[0],object.get('velocityy',0) + ground.velocity[1]),
                                          flipx = object.get('flipx',False),flipy = object.get('flipy',False))
+                    else:
+                        obstacle = ground.obstacle = Manager(screen,image = object.get('image',None),size = object.get('size',None))
+                    obstacle.posbias = (object.get('posbiasx',0),object.get('posbiasy',0))
                     obstacle.vel = (object.get('velocityx',0),object.get('velcoityy',0))
                     obstacle.folder = object.get('folder',None)
                     obstacle.rate = object.get('rate',0)
                     obstacle.flip = (object.get('flipx',False),object.get('flipy',False))
                     obstacle.shoot = object.get('shoot',None)
+                    obstacle.gap = object.get('gap',0)
+                    obstacle.repeats = object.get('repeat',False)
+                    obstacle.erasebefore = object.get('erasebefore',None)
                 else:
                     obstacle = ground.obstacle = object
             if obstacle:
-                if obstacle.folder:
-                    obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
-                obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
-                obstacle.show()
+                if obstacle.repeats == False:
+                    if obstacle.folder:
+                        obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
+                    obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
+                    obstacle.show()
+                else:
+                    obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
+                    pass
                 if obstacle.shoot:
                     obstacles(screen,obstacle,obstacle.shoot)
-        fireball = {'folder' : 'fire_ball','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -1}
-        statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball]}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -0.5,'repeat' : True,'gap' : 300,'erasebefore' : 0}
+        statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
             blocked = False
             self.screen.fill((0,0,0))
             player.show()
             # ground.show()
             player.animate('walking',flip = False)
-            grounds = ground.repeat(ground.size[0],(self.screenheight - 100,self.screenheight - 50),(ground_start,self.screenwidth),velocity = ground_vel,erase_before=-1400)
+            grounds = ground.repeat(ground.size[0],(self.screenheight - 100,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1400)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
@@ -334,8 +346,8 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
-            if player.pos[1] > self.screenheight:
-                quit()
+            # if player.pos[1] > self.screenheight:
+            #     quit()
             for event in pm.event.get():
                 if event.type == pm.QUIT:
                     quit()
