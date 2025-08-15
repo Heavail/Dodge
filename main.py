@@ -222,12 +222,21 @@ class Main:
         player = Assets(self.screen,velocity = (0,0),pos = (50,50))
         player_flip = False
         landed = False
+        first_fall = False
+        dash = False
+        dash_once = True
+        velx = 2
+        xvel = velx
+        dash_vel = 5
+        dash_maxdis = 200
+        dash_dis = 0
+        yacc = accy = 0.007
         launched = False
         move_for = False
         move_back = False
         slide = False
         gr = {}
-        ground = Manager(self.screen,image = 'land3.png',size = (900,100))
+        ground = Manager(self.screen,image = 'land3.png',size = (900,200))
         ground_start = 0
         ground_vel = 0
         def ground_interaction(player,i):
@@ -291,7 +300,7 @@ class Main:
             player.show()
             # ground.show()
             player.animate('walking',flip = False)
-            grounds = ground.repeat(ground.size[0],(self.screenheight - 100,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1400)
+            grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
@@ -314,14 +323,29 @@ class Main:
                 #     player.velocity = (player.velocity[0],1)
                 #     player.acceleration = (0,0)
                 # else:
-                player.acceleration = (player.acceleration[0],+0.01)
-            
+                if dash == False:
+                    accy = yacc
+                else:
+                    accy = 0
+                    if dash_once == True:
+                        velx = dash_vel
+                        dash_dis += dash_vel
+                    if dash_dis >= dash_maxdis:
+                        dash_once = False
+                        dash = False
+                        dash_dis = 0
+                        velx = xvel
+                player.acceleration = (player.acceleration[0],accy)
+            else:
+                dash_once = True
+                dash = False
+                accy = yacc
             # if move_for == True:
             if player.pos[0] < 150 and blocked == False:
-                player.velocity = (0.5,player.velocity[1])
+                player.velocity = (velx,player.velocity[1])
                 ground_vel = 0
             else:
-                ground_vel = -0.5
+                ground_vel = -velx
                 if blocked:
                     player.folder = 'standing'
                     player.velocity = (ground_vel,player.velocity[1])
@@ -346,20 +370,34 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
-            # if player.pos[1] > self.screenheight:
-            #     quit()
+            if player.pos[1] > self.screenheight:
+                quit()
+            # if dash == True:
+            #     dash = False
+            #     velx = xvel
             for event in pm.event.get():
                 if event.type == pm.QUIT:
                     quit()
                 if event.type == pm.KEYDOWN:
-                    if event.key == pm.K_SPACE and landed == True and not slide:
+                    if event.key == pm.K_SPACE and (landed == True or first_fall == True) and not slide:
+                        if first_fall:
+                            first_fall = False
+                        if landed:
+                            first_fall = True
                         player.velocity = (player.velocity[0],-1)
                         launched = True
-                    if event.key == pm.K_DOWN and landed:
-                        slide = True
+                    if event.key == pm.K_DOWN:
+                        if landed:
+                            slide = True
+                        else:
+                            accy = accy + 0.05
+                    if event.key == pm.K_RIGHT and not landed and dash == False and dash_once == True:
+                        dash = True
+                        # print(dash)
                 elif event.type == pm.KEYUP:
                     if event.key == pm.K_DOWN:
                         slide = False
+            
             pm.display.update()
             await asyncio.sleep(0)
             pass
