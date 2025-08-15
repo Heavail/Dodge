@@ -228,7 +228,7 @@ class Main:
         velx = 2
         xvel = velx
         dash_vel = 5
-        dash_maxdis = 200
+        dash_maxdis = 500
         dash_dis = 0
         yacc = accy = 0.007
         launched = False
@@ -324,9 +324,8 @@ class Main:
                 #     player.acceleration = (0,0)
                 # else:
                 if dash == False:
-                    accy = yacc
+                    player.acceleration = (player.acceleration[0],accy)
                 else:
-                    accy = 0
                     if dash_once == True:
                         velx = dash_vel
                         dash_dis += dash_vel
@@ -335,7 +334,6 @@ class Main:
                         dash = False
                         dash_dis = 0
                         velx = xvel
-                player.acceleration = (player.acceleration[0],accy)
             else:
                 dash_once = True
                 dash = False
