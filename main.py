@@ -227,7 +227,7 @@ class Main:
         dash_once = True
         velx = 2
         xvel = velx
-        dash_vel = 5
+        dash_vel = 3
         dash_maxdis = 500
         dash_dis = 0
         yacc = accy = 0.007
@@ -323,21 +323,24 @@ class Main:
                 #     player.velocity = (player.velocity[0],1)
                 #     player.acceleration = (0,0)
                 # else:
-                if dash == False:
+                if dash_once == False:
                     player.acceleration = (player.acceleration[0],accy)
                 else:
-                    if dash_once == True:
-                        velx = dash_vel
-                        dash_dis += dash_vel
+                    velx = dash_vel
+                    dash_dis += dash_vel
+                    player.velocity = (velx,0)
+                    # player.folder = "dash"
                     if dash_dis >= dash_maxdis:
                         dash_once = False
                         dash = False
                         dash_dis = 0
                         velx = xvel
             else:
-                dash_once = True
-                dash = False
+                dash_once = False
+                dash = True
                 accy = yacc
+                dash_dis = 0
+                velx = xvel
             # if move_for == True:
             if player.pos[0] < 150 and blocked == False:
                 player.velocity = (velx,player.velocity[1])
@@ -348,10 +351,13 @@ class Main:
                     player.folder = 'standing'
                     player.velocity = (ground_vel,player.velocity[1])
                 else:
-                    if slide:
-                        player.folder = 'sliding'
+                    if dash_once == True:
+                        player.folder = 'dash'
                     else:
-                        player.folder = 'walking'
+                        if slide:
+                            player.folder = 'sliding'
+                        else:
+                            player.folder = 'walking'
                     player.velocity = (0,player.velocity[1])
             # else:
             #     player.velocity = (0,player.velocity[1])
@@ -389,8 +395,8 @@ class Main:
                             slide = True
                         else:
                             accy = accy + 0.05
-                    if event.key == pm.K_RIGHT and not landed and dash == False and dash_once == True:
-                        dash = True
+                    if event.key == pm.K_RIGHT and not landed and dash == True:
+                        dash_once = True
                         # print(dash)
                 elif event.type == pm.KEYUP:
                     if event.key == pm.K_DOWN:
