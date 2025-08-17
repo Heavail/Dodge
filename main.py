@@ -20,15 +20,17 @@ class Assets:
         self.rate = 30
         self.count = 0
         self.frame_count = 0
-        self._image = image
+        self.previous_size = None
+        self._image = None
+        self.image = image
         self.pos = pos
         self.folder_once = True
-        self.previous_size = None
         if self._image:
             self.image_blit = pm.transform.flip(pm.image.load(self._image).convert_alpha(),flipx,flipy)
             if self._size:
                 self.image_blit = pm.transform.scale(self.image_blit,size)
             self.width, self.height = (self.image_blit.get_width(),self.image_blit.get_height())
+        
 
         pass
     def collision(self,object):
@@ -60,7 +62,14 @@ class Assets:
                 self.objects[f'{object}'].down_collide = True
             else:
                 self.objects[f'{object}'].down_collide = False
-
+        return True if self.objects[f'{object}'].right_collide or self.objects[f'{object}'].left_collide or self.objects[f'{object}'].up_collide or self.objects[f'{object}'].down_collide else False
+    def mask_collision(self,object):
+        rect_collide = self.collision(object)
+        if rect_collide:
+            if self.mask.overlap(object.mask,(object.pos[0] - self.pos[0],object.pos[1] - self.pos[1])):
+                return True
+            else:
+                return False
     @property
     def size(self):
         return self._size
@@ -86,6 +95,7 @@ class Assets:
                     self.image_blit = pm.transform.scale(self.image_blit,self._size)
                 if self.previous_size:
                     self.pos = (self.pos[0] + self.previous_size[0] - self.size[0],self.pos[1] + self.previous_size[1] - self.size[1])
+                self.mask = pm.mask.from_surface(self.image_blit)
     @property
     def folder(self):
         return self._folder
@@ -132,11 +142,12 @@ class Manager:
         self.repeated = repeated if repeated is not None else []
         self.once_till = True
 
-    def repeat(self,gap,range_to,till,erase_before = None,velocity = 0,positions = None):
+    def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None):
         if self.once_till == True:
             self.till = till
             self.till[0] = till[0]
             self.once_till = False
+        self.collision = []
         self.till[1] = till[1]
         dis = self.till[1] - self.till[0]
         self.repeat_num = int(dis/gap) + 1
@@ -160,6 +171,9 @@ class Manager:
             object.velocity = (velocity,0)
             object.pos = pos
             object.show()
+            if player:
+                if object.mask_collision(player):
+                    self.collision.append(object)
             # if erase_before:
             #     if posx < erase_before:
             #         self.repeated.remove(object)
@@ -218,19 +232,22 @@ class Main:
         pass
     async def main(self):
         print('working....')
+        clock = pm.time.Clock()
         self.screen = pm.display.set_mode((self._screenwidth,self._screenheight))
         player = Assets(self.screen,velocity = (0,0),pos = (50,50))
         player_flip = False
         landed = False
         first_fall = False
         dash = False
-        dash_once = True
-        velx = 2
+        dash_once = False
+        velx = 20
         xvel = velx
-        dash_vel = 3
+        dash_vel = 30
         dash_maxdis = 500
         dash_dis = 0
-        yacc = accy = 0.007
+        yacc = accy = 0.5
+        jump_velocity = -10
+        drop_rate = 0.5
         launched = False
         move_for = False
         move_back = False
@@ -249,14 +266,14 @@ class Main:
             if player.objects[f'{i}'].left_collide == True and player.objects[f'{i}'].right_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
                 player.pos = (i.pos[0] + i.width,player.pos[1])
                 player.objects[f'{i}'].down_collide = False
-            if player.objects[f'{i}'].down_collide == True and i.pos[1] > player.pos[1] + (player.height/2):
+            if player.objects[f'{i}'].down_collide == True:
                 if launched == False:
                     # print(True)
                     landed = True
                     player.velocity = (player.velocity[0],0)
                 player.pos = (player.pos[0],i.pos[1] - player.height)
 
-        def obstacles(screen,ground,obs_list = [None]):
+        def obstacles(screen,ground,player,obs_list = [None]):
             try:
                 obstacle = ground.obstacle
             except AttributeError:
@@ -288,18 +305,25 @@ class Main:
                     obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
                     obstacle.show()
                 else:
-                    obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
+                    obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
+                                    positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
+                    if obstacle.collision:
+                        pm.display.update()
+                        time.sleep(1)
                     pass
                 if obstacle.shoot:
-                    obstacles(screen,obstacle,obstacle.shoot)
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -0.5,'repeat' : True,'gap' : 300,'erasebefore' : 0}
+                    obstacles(screen,obstacle,player,obstacle.shoot)
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -5,'repeat' : True,'gap' : 300,'erasebefore' : 0}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
+            clock.tick(60)
             blocked = False
             self.screen.fill((0,0,0))
-            player.show()
             # ground.show()
-            player.animate('walking',flip = False)
+            player.animate('walking',rate = 2,flip = False)
+            player.show()
+            # player.mask = pm.mask.from_surface(player.image_blit).to_surface()
+            # self.screen.blit(player.mask,player.pos)
             grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
@@ -307,8 +331,8 @@ class Main:
             if player.velocity[1] >= 0:
                 launched = False
             for i in grounds:
+                obstacles(self.screen,i,player,[statue,None])
                 ground_interaction(player,i)
-                obstacles(self.screen,i,[statue,None])
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
             #     gr[i].show()
@@ -388,13 +412,14 @@ class Main:
                             first_fall = False
                         if landed:
                             first_fall = True
-                        player.velocity = (player.velocity[0],-1)
+                        player.velocity = (player.velocity[0],jump_velocity)
                         launched = True
                     if event.key == pm.K_DOWN:
                         if landed:
                             slide = True
                         else:
-                            accy = accy + 0.05
+                            accy = accy + drop_rate
+                            slide = True
                     if event.key == pm.K_RIGHT and not landed and dash == True:
                         dash_once = True
                         # print(dash)
