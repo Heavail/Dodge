@@ -205,7 +205,7 @@ class Main:
     def screenheight(self,value):
         if self._screenheight != value:
             self._screenheight = value
-            self.screen = pm.display.set_mode((self._screenwidth,self._screenheight))
+            self.screen = pm.display.set_mode((self._screenwidth,self._screenheight),pm.FULLSCREEN)
     @property
     def screenwidth(self):
         return self._screenwidth
@@ -240,14 +240,14 @@ class Main:
         first_fall = False
         dash = False
         dash_once = False
-        velx = 20
+        velx = 2
         xvel = velx
-        dash_vel = 30
+        dash_vel = 3
         dash_maxdis = 500
         dash_dis = 0
-        yacc = accy = 0.5
-        jump_velocity = -10
-        drop_rate = 0.5
+        yacc = accy = 0.005
+        jump_velocity = -1
+        drop_rate = 0.05
         launched = False
         move_for = False
         move_back = False
@@ -296,6 +296,7 @@ class Main:
                     obstacle.gap = object.get('gap',0)
                     obstacle.repeats = object.get('repeat',False)
                     obstacle.erasebefore = object.get('erasebefore',None)
+                    obstacle.damage = object.get('damage',False)
                 else:
                     obstacle = ground.obstacle = object
             if obstacle:
@@ -304,21 +305,28 @@ class Main:
                         obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
                     obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
                     obstacle.show()
+                    if obstacle.damage and obstacle.mask_collision(player):
+                        pm.display.update()
+                        time.sleep(0.25)
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
-                    if obstacle.collision:
+                    if obstacle.collision and obstacle.damage:
                         pm.display.update()
-                        time.sleep(1)
+                        time.sleep(0.25)
                     pass
                 if obstacle.shoot:
                     obstacles(screen,obstacle,player,obstacle.shoot)
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -5,'repeat' : True,'gap' : 300,'erasebefore' : 0}
+        
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -0.5,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
+        spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
-            clock.tick(60)
+            clock.tick()
             blocked = False
-            self.screen.fill((0,0,0))
+            self.screen.fill((50,50,50))
             # ground.show()
             player.animate('walking',rate = 2,flip = False)
             player.show()
@@ -331,7 +339,7 @@ class Main:
             if player.velocity[1] >= 0:
                 launched = False
             for i in grounds:
-                obstacles(self.screen,i,player,[statue,None])
+                obstacles(self.screen,i,player,[statue,spikes,None,cannon])
                 ground_interaction(player,i)
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
