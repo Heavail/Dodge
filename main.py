@@ -14,6 +14,7 @@ class Assets:
         self.screen = screen
         self.fixed_size = size
         self._size = size
+        self.file_list = None
         if self._size:
             self.width,self.height = self._size
         self._folder = None
@@ -107,11 +108,11 @@ class Assets:
             self.frame_count = 0
             self.folder_once = True
             self.animate(self._folder,self.rate)
-    def show(self):
+    def show(self,dt = 1):
         if self._image:
             self.previous_size = self.size
-            self.velocity = (self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1])
-            self.pos = (self.pos[0] + self.velocity[0],self.pos[1] + self.velocity[1])
+            self.velocity = (self.velocity[0] + self.acceleration[0] * dt, self.velocity[1] + self.acceleration[1] * dt)
+            self.pos = (self.pos[0] + self.velocity[0] * dt,self.pos[1] + self.velocity[1] * dt)
             self.screen.blit(self.image_blit,self.pos)
 
     def animate(self,folder,rate = 40,adjust_size = True,flip = False):
@@ -142,7 +143,7 @@ class Manager:
         self.repeated = repeated if repeated is not None else []
         self.once_till = True
 
-    def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None):
+    def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None,dt = 1):
         if self.once_till == True:
             self.till = till
             self.till[0] = till[0]
@@ -170,7 +171,7 @@ class Manager:
             object.size = self.size
             object.velocity = (velocity,0)
             object.pos = pos
-            object.show()
+            object.show(dt = dt)
             if player:
                 if object.mask_collision(player):
                     self.collision.append(object)
@@ -240,22 +241,24 @@ class Main:
         first_fall = False
         dash = False
         dash_once = False
-        velx = 2
+        velx = 5
         xvel = velx
-        dash_vel = 3
+        dash_vel = 7
         dash_maxdis = 500
         dash_dis = 0
-        yacc = accy = 0.005
-        jump_velocity = -1
-        drop_rate = 0.05
+        yacc = accy = 0.3
+        jump_velocity = -10
+        drop_rate = 5
         launched = False
         move_for = False
         move_back = False
         slide = False
         gr = {}
-        ground = Manager(self.screen,image = 'land3.png',size = (900,200))
+        ground = Manager(self.screen,image = 'land.png',size = (900,200))
         ground_start = 0
         ground_vel = 0
+        background = pm.transform.scale(pm.image.load('background.png').convert(),(self._screenwidth,self._screenheight))
+        prev_time = time.time()
         def ground_interaction(player,i):
             nonlocal landed,launched,blocked
             player.collision(i)
@@ -273,7 +276,7 @@ class Main:
                     player.velocity = (player.velocity[0],0)
                 player.pos = (player.pos[0],i.pos[1] - player.height)
 
-        def obstacles(screen,ground,player,obs_list = [None]):
+        def obstacles(screen,ground,player,obs_list = [None],dt = 1):
             try:
                 obstacle = ground.obstacle
             except AttributeError:
@@ -307,39 +310,44 @@ class Main:
                     obstacle.show()
                     if obstacle.damage and obstacle.mask_collision(player):
                         pm.display.update()
-                        time.sleep(0.25)
+                        # time.sleep(0.125)
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
                     if obstacle.collision and obstacle.damage:
                         pm.display.update()
-                        time.sleep(0.25)
+                        # time.sleep(0.125)
                     pass
                 if obstacle.shoot:
-                    obstacles(screen,obstacle,player,obstacle.shoot)
+                    obstacles(screen,obstacle,player,obstacle.shoot,dt = dt)
         
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -0.5,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -2,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
-            clock.tick()
+            clock.tick(120)
+            # print(clock.get_fps())
+            now = time.time()
+            dt = (now - prev_time) * 120
+            prev_time = now
             blocked = False
             self.screen.fill((50,50,50))
+            # self.screen.blit(background,(0,0))
             # ground.show()
-            player.animate('walking',rate = 2,flip = False)
+            player.animate('walking',rate = 5,flip = False)
             player.show()
             # player.mask = pm.mask.from_surface(player.image_blit).to_surface()
             # self.screen.blit(player.mask,player.pos)
-            grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
+            grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000,dt = dt)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
             if player.velocity[1] >= 0:
                 launched = False
             for i in grounds:
-                obstacles(self.screen,i,player,[statue,spikes,None,cannon])
+                obstacles(self.screen,i,player,[statue,spikes,None,cannon],dt = dt)
                 ground_interaction(player,i)
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
@@ -406,8 +414,8 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
-            if player.pos[1] > self.screenheight:
-                quit()
+            # if player.pos[1] > self.screenheight:
+            #     quit()
             # if dash == True:
             #     dash = False
             #     velx = xvel
