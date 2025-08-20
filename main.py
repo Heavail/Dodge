@@ -9,6 +9,7 @@ class Assets:
     def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False):
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
+        self.obstacle = False
         self.screen = screen
         self.fixed_size = size
         self._size = size
@@ -141,7 +142,41 @@ class Manager:
         self.repeat_pos = repeat_pos if repeat_pos is not None else []
         self.repeated = repeated if repeated is not None else []
         self.once_till = True
+        self.ys = []
+    def repeatperscreen(self,screenwidth,asset,pos,count,y_list = None,biasx = 5,biasy = 0,randomyrange = (0,0),moveby = 0,score = None,dt = 1):
+        # print(asset)
+        gap = screenwidth/(count - 1)
+        # if len(asset) > count:
+        #     asset.pop(0)
+        # print(score)
+        while len(asset) < count:
+            if y_list == None:
+                #Assets(self.screen,image = self.image,size = self.size,pos = positions)
+                asset.append(Assets(self.screen,image=self.image,pos = [pos[0] + len(asset) * gap,random.randint(randomyrange[0],randomyrange[1])],size = self.size))
+            else:
+                asset.append(Assets(self.screen,image = self.image,pos = [pos[0] + len(asset) * gap,y_list[len(asset)] + biasy],size = self.size))
+            self.ys.append(asset[-1].pos[1])
+        self.a = asset
+        for object in asset:
+            object.velocity = (moveby,0)
+            object.pos = [object.pos[0] + object.velocity[0] * 1,object.pos[1]]
+            if object.pos[0] + object.size[0] < 0:
+                object.obstacle = False
+                if score != None:
+                    score += 1
+                if y_list == None:
+                    object.pos = [gap * count - (object.size[0] + biasx),random.randint(randomyrange[0],randomyrange[1])]
+                else:
+                    object.pos = [gap * count - (object.size[0] + biasx),y_list[-1] + biasy]
+                self.ys.pop(0)
+                self.ys.append(object.pos[1])
+                pos = [pos[0] + gap,pos[1]]
+            object.screen.blit(object.image_blit,object.pos)
 
+        if score != None:
+            return asset,score
+        else:
+            return asset,self.ys
     def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None,dt = 1):
         if self.once_till == True:
             self.till = till
@@ -245,6 +280,7 @@ class Main:
         dash_maxdis = 500
         dash_dis = 0
         yacc = accy = 0.3
+        xacc = accx = 0.001
         jump_velocity = -10
         drop_rate = 0.5
         launched = False
@@ -252,10 +288,12 @@ class Main:
         move_back = False
         slide = False
         gr = {}
-        ground = Manager(self.screen,image = 'land.png',size = (900,200))
+        ground = Manager(self.screen,image = 'land5.png',size = (self._screenwidth/2,200))
+        grounds = []
         ground_start = 0
         ground_vel = 0
-        background = pm.transform.scale(pm.image.load('background.png').convert(),(self._screenwidth,self._screenheight))
+        background = Manager(self.screen,image = 'background.png',size = (self._screenwidth,self._screenheight))
+        backgrounds = []
         prev_time = time.time()
         def ground_interaction(player,i):
             nonlocal landed,launched,blocked
@@ -275,9 +313,9 @@ class Main:
                 player.pos = (player.pos[0],i.pos[1] - player.height)
 
         def obstacles(screen,ground,player,obs_list = [None],dt = 1):
-            try:
+            if ground.obstacle != False:
                 obstacle = ground.obstacle
-            except AttributeError:
+            else:
                 object = random.choice(obs_list)
                 if object:
                     if object.get('repeat',False) == False:
@@ -305,25 +343,27 @@ class Main:
                     if obstacle.folder:
                         obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
                     obstacle.velocity = (obstacle.vel[0] + ground.velocity[0],obstacle.vel[1] + ground.velocity[1])
+                    # print('ground_velocity:',ground.velocity)
+                    # print('obstacle_velocity:',obstacle.velocity)
                     obstacle.show()
                     if obstacle.damage and obstacle.mask_collision(player):
                         pm.display.update()
-                        time.sleep(0.125)
+                        # time.sleep(0.125)
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
                     if obstacle.collisions and obstacle.damage:
                         pm.display.update()
-                        time.sleep(0.125)
+                        # time.sleep(0.125)
                     # print({f'{obstacle.image}' : len(obstacle.repeated)})
                     pass
                 if obstacle.shoot:
                     obstacles(screen,obstacle,player,obstacle.shoot,dt = dt)
         
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -2,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -2,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
             clock.tick(120)
@@ -332,14 +372,19 @@ class Main:
             dt = (now - prev_time) * 120
             prev_time = now
             blocked = False
+            if xvel < 15:
+                xvel += accx * dt
+                dash_vel += accx * dt
             self.screen.fill((50,50,50))
             # self.screen.blit(background,(0,0))
             # ground.show()
+            backgrounds,ys = background.repeatperscreen(3 * self._screenwidth,backgrounds,[0,0],6,moveby = ground_vel/6,dt = dt)
             player.animate('walking',rate = 5,flip = False)
             player.show()
             # player.mask = pm.mask.from_surface(player.image_blit).to_surface()
             # self.screen.blit(player.mask,player.pos)
-            grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-2000,dt = dt)
+            #grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
+            grounds,groundys = ground.repeatperscreen(self._screenwidth,grounds,[0,0],3,randomyrange=[self._screenheight-200,self._screenheight - 50],moveby = ground_vel,dt = dt)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
