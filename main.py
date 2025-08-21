@@ -4,6 +4,10 @@ import os
 import random
 import asyncio
 import time
+import tracemalloc
+tracemalloc.start()
+
+
 
 class Assets:
     def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False):
@@ -348,13 +352,13 @@ class Main:
                     obstacle.show()
                     if obstacle.damage and obstacle.mask_collision(player):
                         pm.display.update()
-                        # time.sleep(0.125)
+                        time.sleep(0.25)
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
                     if obstacle.collisions and obstacle.damage:
                         pm.display.update()
-                        # time.sleep(0.125)
+                        time.sleep(0.25)
                     # print({f'{obstacle.image}' : len(obstacle.repeated)})
                     pass
                 if obstacle.shoot:
@@ -363,7 +367,7 @@ class Main:
         cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -2,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         while True:
             clock.tick(120)
@@ -384,7 +388,7 @@ class Main:
             # player.mask = pm.mask.from_surface(player.image_blit).to_surface()
             # self.screen.blit(player.mask,player.pos)
             #grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
-            grounds,groundys = ground.repeatperscreen(self._screenwidth,grounds,[0,0],3,randomyrange=[self._screenheight-200,self._screenheight - 50],moveby = ground_vel,dt = dt)
+            grounds,groundys = ground.repeatperscreen(self._screenwidth,grounds,[0,0],3,randomyrange=[self._screenheight-200,self._screenheight - 50],biasx = 15,moveby = ground_vel,dt = dt)
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
