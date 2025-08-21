@@ -162,7 +162,7 @@ class Manager:
             self.ys.append(asset[-1].pos[1])
         self.a = asset
         for object in asset:
-            object.velocity = (moveby,0)
+            object.velocity = (moveby * dt,0)
             object.pos = [object.pos[0] + object.velocity[0] * 1,object.pos[1]]
             if object.pos[0] + object.size[0] < 0:
                 object.obstacle = False
@@ -271,12 +271,16 @@ class Main:
     async def main(self):
         print('working....')
         clock = pm.time.Clock()
+        scores = 0
+        with open('highscore.txt','r') as file:
+            highscore = int(file.read())
+        death = False
         self.screen = pm.display.set_mode((self._screenwidth,self._screenheight))
         player = Assets(self.screen,velocity = (0,0),pos = (50,50))
         player_flip = False
         landed = False
         first_fall = False
-        dash = False
+        dash = True
         dash_once = False
         velx = 5
         xvel = velx
@@ -291,6 +295,7 @@ class Main:
         move_for = False
         move_back = False
         slide = False
+        Font = pm.font.SysFont("Courier New",30)
         gr = {}
         ground = Manager(self.screen,image = 'land5.png',size = (self._screenwidth/2,200))
         grounds = []
@@ -317,6 +322,7 @@ class Main:
                 player.pos = (player.pos[0],i.pos[1] - player.height)
 
         def obstacles(screen,ground,player,obs_list = [None],dt = 1):
+            nonlocal scores,highscore,death
             if ground.obstacle != False:
                 obstacle = ground.obstacle
             else:
@@ -340,6 +346,7 @@ class Main:
                     obstacle.repeats = object.get('repeat',False)
                     obstacle.erasebefore = object.get('erasebefore',None)
                     obstacle.damage = object.get('damage',False)
+                    obstacle.score = False
                 else:
                     obstacle = ground.obstacle = object
             if obstacle:
@@ -350,15 +357,18 @@ class Main:
                     # print('ground_velocity:',ground.velocity)
                     # print('obstacle_velocity:',obstacle.velocity)
                     obstacle.show()
+                    if obstacle.pos[0] + obstacle.size[0] < player.pos[0] and not obstacle.score:
+                        scores += 1
+                        obstacle.score = True
                     if obstacle.damage and obstacle.mask_collision(player):
                         pm.display.update()
-                        time.sleep(0.25)
+                        death = True
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
                     if obstacle.collisions and obstacle.damage:
                         pm.display.update()
-                        time.sleep(0.25)
+                        death = True
                     # print({f'{obstacle.image}' : len(obstacle.repeated)})
                     pass
                 if obstacle.shoot:
@@ -379,6 +389,8 @@ class Main:
             if xvel < 15:
                 xvel += accx * dt
                 dash_vel += accx * dt
+            else:
+                xvel = 15
             self.screen.fill((50,50,50))
             # self.screen.blit(background,(0,0))
             # ground.show()
@@ -389,6 +401,11 @@ class Main:
             # self.screen.blit(player.mask,player.pos)
             #grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
             grounds,groundys = ground.repeatperscreen(self._screenwidth,grounds,[0,0],3,randomyrange=[self._screenheight-200,self._screenheight - 50],biasx = 15,moveby = ground_vel,dt = dt)
+            dodged_score = Font.render(f"Obstacles dodged : {scores}",True,(122,122,122))
+            high_score = Font.render(f"High Score : {highscore}",True,(122,122,122))
+
+            self.screen.blit(dodged_score,(self._screenwidth/2 - dodged_score.get_width()/2,100))
+            self.screen.blit(high_score,(self._screenwidth/2 - high_score.get_width()/2,dodged_score.get_height() + 110))
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
@@ -435,6 +452,7 @@ class Main:
                 player.velocity = (velx,player.velocity[1])
                 ground_vel = 0
             else:
+                player.pos = (150,player.pos[1])
                 ground_vel = -velx
                 if blocked:
                     player.folder = 'standing'
@@ -463,8 +481,8 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
-            # if player.pos[1] > self.screenheight:
-            #     quit()
+            if player.pos[1] > self.screenheight:
+                death = True
             # if dash == True:
             #     dash = False
             #     velx = xvel
@@ -483,7 +501,7 @@ class Main:
                         if landed:
                             slide = True
                         else:
-                            accy = accy + drop_rate
+                            accy += drop_rate
                             slide = True
                     if event.key == pm.K_RIGHT and not landed and dash == True:
                         dash_once = True
@@ -491,11 +509,28 @@ class Main:
                 elif event.type == pm.KEYUP:
                     if event.key == pm.K_DOWN:
                         slide = False
-            
+            if scores > highscore:
+                highscore = scores
+            if death == True:
+                if scores >= highscore:
+                    with open('highscore.txt','w') as file:
+                        file.write(str(scores))
+                game_over = pm.transform.scale(Font.render('GAME OVER',True,(122,0,0)),(500,250))
+                self.screen.blit(game_over,(self._screenwidth/2 - game_over.get_width()/2,self._screenheight/2 - game_over.get_height()/2))
+                pm.display.update()
+                run = True
+                while run:
+                    for event in pm.event.get():
+                        if event.type == MOUSEBUTTONDOWN:
+                            run = False
+                        if event.type == QUIT:
+                            pm.quit()
+                return None
             pm.display.update()
             await asyncio.sleep(0)
             pass
         pass
 game = Main()
-asyncio.run(game.main())
+while True:
+    asyncio.run(game.main())
 # game.main()
