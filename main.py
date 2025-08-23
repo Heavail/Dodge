@@ -296,6 +296,10 @@ class Main:
         move_back = False
         slide = False
         Font = pm.font.SysFont("Courier New",30)
+        Font2 = pm.font.SysFont("Tahoma",30)
+        space = pm.transform.scale(Font2.render('Press Space Key once to jump and double to double jump " "',True,(112,112,112)),(self._screenwidth/2.5,30))
+        right = pm.transform.scale(Font2.render('Press Right Arrow Key to dash "→"',True,(112,112,112)),(self._screenwidth/4,25))
+        down = pm.transform.scale(Font2.render('Press Down Arrow Key to slide "↓"',True,(112,112,112)),(self._screenwidth/4,25))
         gr = {}
         ground = Manager(self.screen,image = 'land5.png',size = (self._screenwidth/2,200))
         grounds = []
@@ -379,6 +383,8 @@ class Main:
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
         fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
+        counts = 0 
+        obstacle_list = [None]
         while True:
             clock.tick(120)
             # print(clock.get_fps())
@@ -406,15 +412,21 @@ class Main:
 
             self.screen.blit(dodged_score,(self._screenwidth/2 - dodged_score.get_width()/2,100))
             self.screen.blit(high_score,(self._screenwidth/2 - high_score.get_width()/2,dodged_score.get_height() + 110))
+            self.screen.blit(space,(0,50))
+            self.screen.blit(right,(0,100))
+            self.screen.blit(down,(0,150))
             # grounds = self.ground(150,(600,700),1400)
             landed = False
             # print(player.velocity[1])
             if player.velocity[1] >= 0:
                 launched = False
             for i in grounds:
-                obstacles(self.screen,i,player,[statue,spikes,None,cannon],dt = dt)
+                obstacles(self.screen,i,player,obstacle_list,dt = dt)
                 ground_interaction(player,i)
                 player.objects.clear()
+            counts += 1
+            if counts > 15:
+                obstacle_list = [None,spikes,statue,cannon]
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
             #     gr[i].show()

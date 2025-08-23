@@ -1,2 +1,0 @@
-
-    #     vely = -vely
