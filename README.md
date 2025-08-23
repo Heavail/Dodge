@@ -1,5 +1,5 @@
 A game of endless run where you have to survive by dodging the obstacles and earn the scores as per your quick reflexes ;)
-you can enjoy game's demo at https://heavail.github.io/Dodge_web/ also I have a separate repostory for it's web version which
+you can enjoy game's demo at https://heavail.github.io/Dodge_web/ also I have a separate repository for it's web version which
 was created with the help of pygbag library.
 <img width="1918" height="1199" alt="Screenshot 2025-08-22 002729" src="https://github.com/user-attachments/assets/2160cc4e-8ce2-4f4e-a805-e40e3cd5efa1" />
 <img width="1919" height="1199" alt="Screenshot 2025-08-22 002549" src="https://github.com/user-attachments/assets/fcca80b9-2eea-45ef-8e27-1c70bff99b61" />
