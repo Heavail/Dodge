@@ -318,7 +318,7 @@ class Main:
             if player.objects[f'{i}'].left_collide == True and player.objects[f'{i}'].right_collide == False and i.pos[1] <= player.pos[1] + (player.height/2):
                 player.pos = (i.pos[0] + i.width,player.pos[1])
                 player.objects[f'{i}'].down_collide = False
-            if player.objects[f'{i}'].down_collide == True:
+            if player.objects[f'{i}'].down_collide == True and (i.pos[1] > player.pos[1] + (player.height/2) or i.pos[1] < player.pos[1] and player.pos[0] > i.pos[0] and player.pos[0] + player.width < i.pos[0] + i.width):
                 if launched == False:
                     # print(True)
                     landed = True
@@ -381,7 +381,7 @@ class Main:
         cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
         cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 500,'erasebefore' : 0,'damage' : True}
         statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
         counts = 0 
         obstacle_list = [None]
@@ -391,7 +391,7 @@ class Main:
             now = time.time()
             dt = (now - prev_time) * 120
             prev_time = now
-            blocked = False
+            
             if xvel < 15:
                 xvel += accx * dt
                 dash_vel += accx * dt
@@ -400,9 +400,11 @@ class Main:
             self.screen.fill((50,50,50))
             # self.screen.blit(background,(0,0))
             # ground.show()
+            blocked = False
             backgrounds,ys = background.repeatperscreen(3 * self._screenwidth,backgrounds,[0,0],6,moveby = ground_vel/6,dt = dt)
             player.animate('walking',rate = 5,flip = False)
             player.show()
+            landed = False
             # player.mask = pm.mask.from_surface(player.image_blit).to_surface()
             # self.screen.blit(player.mask,player.pos)
             #grounds = ground.repeat(ground.size[0],(self.screenheight - 200,self.screenheight - 50),[ground_start,self.screenwidth],velocity = ground_vel,erase_before=-1000)
@@ -416,7 +418,6 @@ class Main:
             self.screen.blit(right,(0,100))
             self.screen.blit(down,(0,150))
             # grounds = self.ground(150,(600,700),1400)
-            landed = False
             # print(player.velocity[1])
             if player.velocity[1] >= 0:
                 launched = False
@@ -464,7 +465,6 @@ class Main:
                 player.velocity = (velx,player.velocity[1])
                 ground_vel = 0
             else:
-                player.pos = (150,player.pos[1])
                 ground_vel = -velx
                 if blocked:
                     player.folder = 'standing'
