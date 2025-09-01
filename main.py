@@ -351,9 +351,13 @@ class Main:
                     obstacle.erasebefore = object.get('erasebefore',None)
                     obstacle.damage = object.get('damage',False)
                     obstacle.score = False
+                    obstacle.shotby = object.get('shotby',None)
                 else:
                     obstacle = ground.obstacle = object
             if obstacle:
+                if obstacle.shotby:
+                    screen.blit(obstacle.shotby['image'],(ground.pos[0] + ground.size[0] + obstacle.shotby['posbiasx'],ground.pos[1] + obstacle.shotby['posbiasy']))
+                    pass
                 if obstacle.repeats == False:
                     if obstacle.folder:
                         obstacle.animate(obstacle.folder,rate=obstacle.rate,flip = obstacle.flip[0])
@@ -370,6 +374,9 @@ class Main:
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
                                     positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
+                    if obstacle.till[1] < player.pos[0] and not obstacle.score:
+                        scores += 1
+                        obstacle.score = True
                     if obstacle.collisions and obstacle.damage:
                         pm.display.update()
                         death = True
@@ -377,12 +384,15 @@ class Main:
                     pass
                 if obstacle.shoot:
                     obstacles(screen,obstacle,player,obstacle.shoot,dt = dt)
-        
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : 5,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True}
-        cannon = {'image' : 'cannon.png','size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'shoot' : [cannon_ball],'repeat' : False}
+        cannon = {'size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'repeat' : False}
+        can_im = pm.transform.flip(pm.transform.scale(pm.image.load('cannon.png').convert_alpha(),cannon['size']),cannon['flipx'],False)
+        cannon['image'] = can_im
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True,'shotby' : cannon}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : 10,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 500,'erasebefore' : 0,'damage' : True}
-        statue = {'image' : 'ancientdog_statue.png','size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'shoot' : [fireball],'repeat' : False}
+        statue = {'size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'repeat' : False}
+        statue_im = pm.transform.flip(pm.transform.scale(pm.image.load('ancientdog_statue.png').convert_alpha(),statue['size']),statue['flipx'],False)
+        statue['image'] = statue_im
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : -40,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 500,'erasebefore' : 0,'damage' : True, 'shotby' : statue}
         counts = 0 
         obstacle_list = [None]
         while True:
@@ -427,7 +437,7 @@ class Main:
                 player.objects.clear()
             counts += 1
             if counts > 15:
-                obstacle_list = [None,spikes,statue,cannon]
+                obstacle_list = [None,spikes,cannon_ball,fireball]
             # for i in range(len(grounds)):
             #     gr[i] = Assets(self.screen,image = 'land.png',pos = grounds[i],size = (150,100))
             #     gr[i].show()
