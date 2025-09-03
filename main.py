@@ -10,7 +10,7 @@ tracemalloc.start()
 
 
 class Assets:
-    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False):
+    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None):
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
         self.obstacle = False
@@ -27,6 +27,9 @@ class Assets:
         self.previous_size = None
         self._image = None
         self.image = image
+        self._soundfile = None
+        self.soundfile = soundfile
+        self.prev_soundfile = None
         self.pos = pos
         self.folder_once = True
         if self._image:
@@ -118,6 +121,16 @@ class Assets:
             self.velocity = (self.velocity[0] + self.acceleration[0] * dt, self.velocity[1] + self.acceleration[1] * dt)
             self.pos = (self.pos[0] + self.velocity[0] * dt,self.pos[1] + self.velocity[1] * dt)
             self.screen.blit(self.image_blit,self.pos)
+    @property
+    def soundfile(self):
+        return self._soundfile
+    @soundfile.setter
+    def soundfile(self,value):
+        self.prev_soundfile = self._soundfile
+        if self._soundfile != value:
+            self._soundfile = value
+            if value:
+                self.sound = pm.mixer.Sound(self._soundfile)
 
     def animate(self,folder,rate = 40,adjust_size = True,flip = False):
         self.rate = rate
@@ -231,6 +244,10 @@ class Manager:
 class Main:
     def __init__(self):
         pm.init()
+        pm.mixer.init()
+        self.walking_sound = pm.mixer.Sound('running.ogg')
+        self.sliding_sound = pm.mixer.Sound('slide.mp3')
+        self.landed_sound = pm.mixer.Channel(0)
         screen_info = pm.display.Info()
         self._screenheight  = screen_info.current_h
         self._screenwidth = screen_info.current_w
@@ -474,6 +491,8 @@ class Main:
             if player.pos[0] < 150 and blocked == False:
                 player.velocity = (velx,player.velocity[1])
                 ground_vel = 0
+                player.folder = 'walking'
+                player.soundfile = 'running.ogg'
             else:
                 ground_vel = -velx
                 if blocked:
@@ -485,8 +504,10 @@ class Main:
                     else:
                         if slide:
                             player.folder = 'sliding'
+                            player.soundfile = 'slide.mp3'
                         else:
                             player.folder = 'walking'
+                            player.soundfile = 'running.ogg'
                     player.velocity = (0,player.velocity[1])
             # else:
             #     player.velocity = (0,player.velocity[1])
@@ -503,6 +524,11 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
+            if landed and not blocked and player.soundfile == player.prev_soundfile:
+                if not self.landed_sound.get_busy():
+                    self.landed_sound.play(player.sound)
+            else:
+                self.landed_sound.stop()
             if player.pos[1] > self.screenheight:
                 death = True
             # if dash == True:
