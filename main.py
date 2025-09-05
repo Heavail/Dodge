@@ -5,9 +5,12 @@ import random
 import asyncio
 import time
 import tracemalloc
-tracemalloc.start()
-
-
+from collections import defaultdict
+# tracemalloc.start()
+pm.init()
+pm.mixer.init(frequency=44100, size=-16, channels=2, buffer=256)
+pm.mixer.set_num_channels(64)
+FIREBALL_SOUND = pm.mixer.Sound('fireball.ogg')
 
 class Assets:
     def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None):
@@ -29,6 +32,7 @@ class Assets:
         self.image = image
         self._soundfile = None
         self.soundfile = soundfile
+        self.all_sounds = defaultdict(lambda :None)
         self.prev_soundfile = None
         self.pos = pos
         self.folder_once = True
@@ -130,6 +134,8 @@ class Assets:
         if self._soundfile != value:
             self._soundfile = value
             if value:
+                # if not self.all_sounds[value]:
+                #     self.all_sounds[value] = pm.mixer.Sound(self._soundfile)
                 self.sound = pm.mixer.Sound(self._soundfile)
 
     def animate(self,folder,rate = 40,adjust_size = True,flip = False):
@@ -194,7 +200,7 @@ class Manager:
             return asset,score
         else:
             return asset,self.ys
-    def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None,dt = 1):
+    def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None,dt = 1,soundfile = None):
         if self.once_till == True:
             self.till = till
             self.till[0] = till[0]
@@ -209,6 +215,19 @@ class Manager:
                 object = self.repeated[count]
             except:
                 object = Assets(self.screen,image = self.image,size = self.size,pos = positions)
+                object.channel = pm.mixer.find_channel(True)
+                object.play_once = True
+                if soundfile and object.play_once:
+                    # object.play_once = False
+                    object.soundfile = soundfile
+                    object.channel.play(object.sound,-1)
+                # counts = 0
+                # for i in range(64):
+                #     if not pm.mixer.Channel(i).get_busy():
+                #         counts += 1
+                
+                # print(counts)
+                
                 self.repeated.append(object)
             posx = self.till[0] + count * gap
             if not object.pos:
@@ -223,6 +242,7 @@ class Manager:
             object.velocity = (velocity,0)
             object.pos = pos
             object.show(dt = dt)
+            
             if player:
                 if object.mask_collision(player):
                     self.collisions.append(object)
@@ -230,7 +250,10 @@ class Manager:
             #     if posx < erase_before:
             #         self.repeated.remove(object)
             count += 1
-            if erase_before:
+            if object.soundfile and object.pos[0] < 0 and object.channel:
+                object.channel.stop()
+                object.channel = None
+            if erase_before != None:
                 if object.pos[0] < erase_before:
                     self.till = [self.till[0] + gap,self.till[1]]
                     try:
@@ -243,8 +266,7 @@ class Manager:
 
 class Main:
     def __init__(self):
-        pm.init()
-        pm.mixer.init()
+        
         self.walking_sound = pm.mixer.Sound('running.ogg')
         self.sliding_sound = pm.mixer.Sound('slide.mp3')
         self.landed_sound = pm.mixer.Channel(0)
@@ -252,6 +274,10 @@ class Main:
         self._screenheight  = screen_info.current_h
         self._screenwidth = screen_info.current_w
         self.groundy_list = [self.screenheight - 100,self.screenheight - 100,self.screenheight - 100]
+        #tracemalloc 
+        # self.start_snapshot = tracemalloc.take_snapshot()
+        # self.frame_counter = 0
+        # self.report_every = 600
         pass
     @property
     def screenheight(self):
@@ -369,6 +395,7 @@ class Main:
                     obstacle.damage = object.get('damage',False)
                     obstacle.score = False
                     obstacle.shotby = object.get('shotby',None)
+                    obstacle.soundfile = object.get('soundfile',None)
                 else:
                     obstacle = ground.obstacle = object
             if obstacle:
@@ -390,7 +417,7 @@ class Main:
                         death = True
                 else:
                     obstacle.repeat(obstacle.gap,(ground.pos[1] + obstacle.posbias[1],ground.pos[1] + obstacle.posbias[1]),[ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[0] + ground.size[0] + obstacle.posbias[0]],player = player,
-                                    positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0])
+                                    positions= (ground.pos[0] + ground.size[0] + obstacle.posbias[0],ground.pos[1] + obstacle.posbias[1]),erase_before=obstacle.erasebefore,velocity = obstacle.vel[0] + ground.velocity[0],soundfile=obstacle.soundfile)
                     if obstacle.till[1] < player.pos[0] and not obstacle.score:
                         scores += 1
                         obstacle.score = True
@@ -404,12 +431,12 @@ class Main:
         cannon = {'size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'repeat' : False}
         can_im = pm.transform.flip(pm.transform.scale(pm.image.load('cannon.png').convert_alpha(),cannon['size']),cannon['flipx'],False)
         cannon['image'] = can_im
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : 0,'damage' : True,'shotby' : cannon}
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True,'shotby' : cannon}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
         statue = {'size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'repeat' : False}
         statue_im = pm.transform.flip(pm.transform.scale(pm.image.load('ancientdog_statue.png').convert_alpha(),statue['size']),statue['flipx'],False)
         statue['image'] = statue_im
-        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : -40,'posbiasx' : -25,'velocityx' : -3,'repeat' : True,'gap' : 500,'erasebefore' : 0,'damage' : True, 'shotby' : statue}
+        fireball = {'image' : 'fireball.png','size' : (10,10),'posbiasy' : -40,'posbiasx' : -25,'velocityx' : -2,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True, 'shotby' : statue,'soundfile' : 'fireball.ogg'}
         counts = 0 
         obstacle_list = [None]
         while True:
@@ -501,6 +528,7 @@ class Main:
                 else:
                     if dash_once == True:
                         player.folder = 'dash'
+                        player.soundfile = 'dash.mp3'
                     else:
                         if slide:
                             player.folder = 'sliding'
@@ -524,7 +552,7 @@ class Main:
             #     player.velocity = (0,player.velocity[1])
             #     player.folder = 'standing'
             #     ground_vel = 0
-            if landed and not blocked and player.soundfile == player.prev_soundfile:
+            if (landed or dash_once) and not blocked and player.soundfile == player.prev_soundfile and not death:
                 if not self.landed_sound.get_busy():
                     self.landed_sound.play(player.sound)
             else:
@@ -574,6 +602,17 @@ class Main:
                         if event.type == QUIT:
                             pm.quit()
                 return None
+            #tracemalloc implementation
+
+            # self.frame_counter += 1
+            # if self.frame_counter % self.report_every == 0:
+            #     snapshot = tracemalloc.take_snapshot()
+            #     top_stats = snapshot.compare_to(self.start_snapshot, 'lineno')
+
+            #     print(f"\n[ Memory differences after {self.frame_counter} frames ]")
+            #     for stat in top_stats[:10]:  # show top 10 allocations
+            #         print(stat)
+
             pm.display.update()
             await asyncio.sleep(0)
             pass
