@@ -10,7 +10,11 @@ from collections import defaultdict
 pm.init()
 pm.mixer.init(frequency=44100, size=-16, channels=2, buffer=256)
 pm.mixer.set_num_channels(64)
-FIREBALL_SOUND = pm.mixer.Sound('fireball.ogg')
+pm.mixer.set_reserved(4)
+
+CHANNEL_INDICES = list(range(4, 20))
+CHANNELS = [pm.mixer.Channel(i) for i in CHANNEL_INDICES]
+SOUND_INDEX = 0
 
 class Assets:
     def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None):
@@ -134,9 +138,9 @@ class Assets:
         if self._soundfile != value:
             self._soundfile = value
             if value:
-                # if not self.all_sounds[value]:
-                #     self.all_sounds[value] = pm.mixer.Sound(self._soundfile)
-                self.sound = pm.mixer.Sound(self._soundfile)
+                if not self.all_sounds[value]:
+                    self.all_sounds[value] = pm.mixer.Sound(self._soundfile)
+                self.sound = self.all_sounds[value]
 
     def animate(self,folder,rate = 40,adjust_size = True,flip = False):
         self.rate = rate
@@ -201,6 +205,9 @@ class Manager:
         else:
             return asset,self.ys
     def repeat(self,gap,range_to,till,player = None,erase_before = None,velocity = 0,positions = None,dt = 1,soundfile = None):
+        global SOUND_INDEX
+        if SOUND_INDEX == 16:
+            SOUND_INDEX = 0
         if self.once_till == True:
             self.till = till
             self.till[0] = till[0]
@@ -215,12 +222,13 @@ class Manager:
                 object = self.repeated[count]
             except:
                 object = Assets(self.screen,image = self.image,size = self.size,pos = positions)
-                object.channel = pm.mixer.find_channel(True)
                 object.play_once = True
-                if soundfile and object.play_once:
-                    # object.play_once = False
+                if soundfile and object.pos[0] > 0:
                     object.soundfile = soundfile
-                    object.channel.play(object.sound,-1)
+                    channel = CHANNELS[SOUND_INDEX]
+                    if not channel.get_busy():
+                        channel.play(object.sound)
+                    SOUND_INDEX += 1
                 # counts = 0
                 # for i in range(64):
                 #     if not pm.mixer.Channel(i).get_busy():
@@ -250,9 +258,9 @@ class Manager:
             #     if posx < erase_before:
             #         self.repeated.remove(object)
             count += 1
-            if object.soundfile and object.pos[0] < 0 and object.channel:
-                object.channel.stop()
-                object.channel = None
+            # if object.soundfile and object.pos[0] < 0 and object.channel:
+            #     object.channel.stop()
+            #     object.channel = None
             if erase_before != None:
                 if object.pos[0] < erase_before:
                     self.till = [self.till[0] + gap,self.till[1]]
@@ -431,7 +439,7 @@ class Main:
         cannon = {'size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'repeat' : False}
         can_im = pm.transform.flip(pm.transform.scale(pm.image.load('cannon.png').convert_alpha(),cannon['size']),cannon['flipx'],False)
         cannon['image'] = can_im
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True,'shotby' : cannon}
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True,'shotby' : cannon,'soundfile' : 'cannon.ogg'}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
         statue = {'size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'repeat' : False}
         statue_im = pm.transform.flip(pm.transform.scale(pm.image.load('ancientdog_statue.png').convert_alpha(),statue['size']),statue['flipx'],False)
