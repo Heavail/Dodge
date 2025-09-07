@@ -17,6 +17,7 @@ CHANNELS = [pm.mixer.Channel(i) for i in CHANNEL_INDICES]
 SOUND_INDEX = 0
 
 class Assets:
+    DIRECTORIES = defaultdict(lambda : None)
     def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None):
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
@@ -147,7 +148,9 @@ class Assets:
         if self.folder_once == True:
             self._folder = folder
             self.folder_once = False
-        self.file_list = os.listdir(self.folder)
+        if not Assets.DIRECTORIES[self.folder]:
+            Assets.DIRECTORIES[self.folder] = os.listdir(self.folder)
+        self.file_list = Assets.DIRECTORIES[self.folder]
         if self.count == rate:
             self.frame_count += 1
             self.count = 0
@@ -348,9 +351,9 @@ class Main:
         slide = False
         Font = pm.font.SysFont("Courier New",30)
         Font2 = pm.font.SysFont("Tahoma",30)
-        space = pm.transform.scale(Font2.render('Press Space Key once to jump and double to double jump " "',True,(112,112,112)),(self._screenwidth/2.5,30))
-        right = pm.transform.scale(Font2.render('Press Right Arrow Key to dash "→"',True,(112,112,112)),(self._screenwidth/4,25))
-        down = pm.transform.scale(Font2.render('Press Down Arrow Key to slide "↓"',True,(112,112,112)),(self._screenwidth/4,25))
+        space = Font2.render('Press Space Key once to jump and double to double jump " "',True,(112,112,112))
+        right = Font2.render('Press Right Arrow Key to dash "→"',True,(112,112,112))
+        down = Font2.render('Press Down Arrow Key to slide "↓"',True,(112,112,112))
         gr = {}
         ground = Manager(self.screen,image = 'land5.png',size = (self._screenwidth/2,200))
         grounds = []
