@@ -15,12 +15,15 @@ pm.mixer.set_reserved(4)
 CHANNEL_INDICES = list(range(4, 20))
 CHANNELS = [pm.mixer.Channel(i) for i in CHANNEL_INDICES]
 SOUND_INDEX = 0
+MUTE = False
 
 class Assets:
     DIRECTORIES = defaultdict(lambda : None)
-    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None):
+    def __init__(self,screen,image = None,pos = None,size = None,velocity = (0,0), acceleration = (0,0),flipx = False,flipy = False,soundfile = None,switch = False,switch_folder = None):
         self.velocity, self.acceleration = (velocity, acceleration)
         self.objects = {}
+        self.switch_folder = switch_folder
+        self.switch = False
         self.obstacle = False
         self.screen = screen
         self.fixed_size = size
@@ -46,6 +49,9 @@ class Assets:
             if self._size:
                 self.image_blit = pm.transform.scale(self.image_blit,size)
             self.width, self.height = (self.image_blit.get_width(),self.image_blit.get_height())
+        if self.switch_folder:
+            self.frame = os.listdir(self.switch_folder)
+            self.image = f'{self.switch_folder}/{self.frame[0]}'
         
 
         pass
@@ -87,6 +93,7 @@ class Assets:
                 return True
             else:
                 return False
+            
     @property
     def size(self):
         return self._size
@@ -156,13 +163,24 @@ class Assets:
             self.count = 0
         if self.frame_count == len(self.file_list):
             self.frame_count = 0
-        self.image = f'{self._folder}//{self.file_list[self.frame_count]}'
+        self.image = f'{self._folder}/{self.file_list[self.frame_count]}'
         # print(self.image)
         if flip == True:
             self.image_blit = pm.transform.flip(pm.image.load(self._image).convert_alpha(),flip_x = True,flip_y = False)
         
         self.count += 1
-
+    def change_switch(self):
+        mouse_pos = pm.mouse.get_pos()
+        self.image = f'{self.switch_folder}/{self.frame[self.frame_count]}'
+        if mouse_pos[0] > self.pos[0] and mouse_pos[0] < self.pos[0] + self.size[0] and mouse_pos[1] > self.pos[1] and mouse_pos[1] < self.pos[1] + self.size[1]:
+            self.frame_count += 1
+            if self.frame_count == len(self.frame):
+                self.frame_count = 0
+            self.image = f'{self.switch_folder}/{self.frame[self.frame_count]}'
+            if self.switch:
+                self.switch = False
+            else:
+                self.switch = True
 
 class Manager:
     def __init__(self, screen, image=None, repeat_pos=None, repeated=None, size=None):
@@ -226,7 +244,7 @@ class Manager:
             except:
                 object = Assets(self.screen,image = self.image,size = self.size,pos = positions)
                 object.play_once = True
-                if soundfile and object.pos[0] > 0:
+                if soundfile and object.pos[0] > 0 and not MUTE:
                     object.soundfile = soundfile
                     channel = CHANNELS[SOUND_INDEX]
                     if not channel.get_busy():
@@ -284,6 +302,8 @@ class Main:
         screen_info = pm.display.Info()
         self._screenheight  = screen_info.current_h
         self._screenwidth = screen_info.current_w
+        self.screen = pm.display.set_mode((self._screenwidth,self._screenheight))
+        self.speaker = Assets(self.screen,pos = (self._screenwidth - 100, 50),size = (50,50),switch = True,switch_folder = 'speaker')
         self.groundy_list = [self.screenheight - 100,self.screenheight - 100,self.screenheight - 100]
         #tracemalloc 
         # self.start_snapshot = tracemalloc.take_snapshot()
@@ -324,12 +344,12 @@ class Main:
         pass
     async def main(self):
         print('working....')
+        global MUTE
         clock = pm.time.Clock()
         scores = 0
         with open('highscore.txt','r') as file:
             highscore = int(file.read())
         death = False
-        self.screen = pm.display.set_mode((self._screenwidth,self._screenheight))
         player = Assets(self.screen,velocity = (0,0),pos = (50,50))
         player_flip = False
         landed = False
@@ -354,6 +374,7 @@ class Main:
         space = Font2.render('Press Space Key once to jump and double to double jump " "',True,(112,112,112))
         right = Font2.render('Press Right Arrow Key to dash "→"',True,(112,112,112))
         down = Font2.render('Press Down Arrow Key to slide "↓"',True,(112,112,112))
+        play_again = Font2.render('Click anywhere to play again..',True,(225,225,225))
         gr = {}
         ground = Manager(self.screen,image = 'land5.png',size = (self._screenwidth/2,200))
         grounds = []
@@ -442,7 +463,7 @@ class Main:
         cannon = {'size' : (50,35),'posbiasx' : -50,'posbiasy' : -35,'flipx' : True,'repeat' : False}
         can_im = pm.transform.flip(pm.transform.scale(pm.image.load('cannon.png').convert_alpha(),cannon['size']),cannon['flipx'],False)
         cannon['image'] = can_im
-        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True,'shotby' : cannon,'soundfile' : 'cannon.ogg'}
+        cannon_ball = {'image' : 'cannon_ball.png','size' : (10,10),'posbiasy' : -30,'posbiasx' : -50,'velocityx' : -1.5,'repeat' : True,'gap' : 300,'erasebefore' : -800,'damage' : True,'shotby' : cannon,'soundfile' : 'cannon.ogg'}
         spikes = {'image' : 'spikes.png','size' : (204,19),'posbiasy' : -19,'posbiasx' : -504,'damage' : True}
         statue = {'size' : (25,50),'posbiasx' : -25,'posbiasy' : -50,'flipx' : True,'repeat' : False}
         statue_im = pm.transform.flip(pm.transform.scale(pm.image.load('ancientdog_statue.png').convert_alpha(),statue['size']),statue['flipx'],False)
@@ -482,6 +503,9 @@ class Main:
             self.screen.blit(space,(0,50))
             self.screen.blit(right,(0,100))
             self.screen.blit(down,(0,150))
+            self.screen.blit(self.speaker.image_blit,self.speaker.pos)
+
+            MUTE = self.speaker.switch
             # grounds = self.ground(150,(600,700),1400)
             # print(player.velocity[1])
             if player.velocity[1] >= 0:
@@ -564,7 +588,7 @@ class Main:
             #     player.folder = 'standing'
             #     ground_vel = 0
             if (landed or dash_once) and not blocked and player.soundfile == player.prev_soundfile and not death:
-                if not self.landed_sound.get_busy():
+                if not self.landed_sound.get_busy() and not MUTE:
                     self.landed_sound.play(player.sound)
             else:
                 self.landed_sound.stop()
@@ -596,6 +620,8 @@ class Main:
                 elif event.type == pm.KEYUP:
                     if event.key == pm.K_DOWN:
                         slide = False
+                if event.type == MOUSEBUTTONDOWN:
+                    self.speaker.change_switch()
             if scores > highscore:
                 highscore = scores
             if death == True:
@@ -604,6 +630,7 @@ class Main:
                         file.write(str(scores))
                 game_over = pm.transform.scale(Font.render('GAME OVER',True,(122,0,0)),(500,250))
                 self.screen.blit(game_over,(self._screenwidth/2 - game_over.get_width()/2,self._screenheight/2 - game_over.get_height()/2))
+                self.screen.blit(play_again,(self._screenwidth/2 - play_again.get_width()/2,self._screenheight/2 + game_over.get_height()/2))
                 pm.display.update()
                 run = True
                 while run:
